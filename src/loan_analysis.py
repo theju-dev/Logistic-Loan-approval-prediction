@@ -1,6 +1,8 @@
 import pandas as pd
 import joblib
+from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import OneHotEncoder,StandardScaler
@@ -137,3 +139,80 @@ print("\n coefficient_df sorted coefficients")
 print(coefficient_df)
 joblib.dump(model,"models/loan_logistic_model.pkl")
 print("\n model saved successfully")
+
+print("\n START WITH DECISION TREE CLASSIFIER ALGORITHM")
+tree_numeric_transformer=Pipeline(steps=[("imputer",SimpleImputer(strategy="median"))])
+tree_binary_transformer=Pipeline(steps=[("imputer",SimpleImputer(strategy="most_frequent"))])
+tree_categorical_transformer=Pipeline(steps=[("imputer",SimpleImputer(strategy="most_frequent")),
+                                             ("encoder",OneHotEncoder(handle_unknown="ignore"))])
+tree_preprocessor=ColumnTransformer(transformers=[("num",tree_numeric_transformer,numeric_features),
+                                                  ("binary",tree_binary_transformer,binary_features),
+                                                  ("cat",tree_categorical_transformer,categorical_features)])
+tree_model=Pipeline(steps=[("preprocessor",tree_preprocessor),("classifier",DecisionTreeClassifier(max_depth=4,random_state=42))])
+tree_model.fit(X_train,y_train)
+tree_pred=tree_model.predict(X_test)
+tree_pred_proba=tree_model.predict_proba(X_test)
+#tree_prob_y=tree_pred_proba[:,1]
+print(tree_pred)
+print(tree_pred_proba)
+print("\n decision tree classes")
+tree_classes=tree_model.named_steps["classifier"].classes_
+tree_y_index=list(tree_classes).index("Y")
+tree_prob_y=tree_pred_proba[:,tree_y_index]
+print("\n Tree prob y")
+print(tree_prob_y)
+tree_accuracy=accuracy_score(y_test,tree_pred)
+tree_precision=precision_score(y_test,tree_pred,pos_label="Y")
+tree_recall=recall_score(y_test,tree_pred,pos_label="Y")
+tree_f1=f1_score(y_test,tree_pred,pos_label="Y")
+tree_confusion_matrix=confusion_matrix(y_test,tree_pred)
+tree_roc_auc=roc_auc_score(y_test_binary,tree_prob_y)
+print("\n ====Decision tree results")
+print("\nAccuracy:",tree_accuracy)
+print("\nPrecision:",tree_precision)
+print("\nrecall:",tree_recall)
+print("\nf1score:",tree_f1)
+print("\nconfusionmatrix:",tree_confusion_matrix)
+print("\nrocauc:",tree_roc_auc)
+print("Classification report:",classification_report(y_test,tree_pred))
+tree_parm_grid={"classifier__max_depth":[2,3,4,5,6]}
+tree_grid_search=GridSearchCV(estimator=tree_model,param_grid=tree_parm_grid,cv=5,scoring="roc_auc")
+tree_grid_search.fit(X_train,y_train)
+print("\n===Decision tree grid search")
+print("Best parameter")
+print(tree_grid_search.best_params_)
+print("\n Best cross validation roc-auc")
+print(tree_grid_search.best_score_)
+best_tree_model=tree_grid_search.best_estimator_
+print("\nBest model")
+print(best_tree_model)
+best_tree_pred=best_tree_model.predict(X_test)
+print(best_tree_pred)
+best_tree_proba=best_tree_model.predict_proba(X_test)
+print(best_tree_proba)
+best_tree_proba_y=best_tree_proba[:,1]
+best_tree_accuracy=accuracy_score(y_test,best_tree_pred)
+best_tree_precision=precision_score(y_test,best_tree_pred,pos_label="Y")
+best_tree_recall=recall_score(y_test,best_tree_pred,pos_label="Y")
+best_tree_f1=f1_score(y_test,best_tree_pred,pos_label="Y")
+best_tree_confusion_matrix = confusion_matrix(
+    y_test,
+    best_tree_pred
+)
+
+best_tree_roc_auc = roc_auc_score(
+    y_test_binary,
+    best_tree_proba_y
+)
+print("\n===== TUNED DECISION TREE TEST RESULTS =====")
+
+print("Accuracy:", best_tree_accuracy)
+print("Precision:", best_tree_precision)
+print("Recall:", best_tree_recall)
+print("F1 Score:", best_tree_f1)
+print("ROC-AUC:", best_tree_roc_auc)
+
+print("\nConfusion Matrix:")
+print(best_tree_confusion_matrix)
+print("\n classification report")
+print(classification_report(y_test,best_tree_pred))
