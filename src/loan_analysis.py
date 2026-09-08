@@ -1,6 +1,7 @@
 import pandas as pd
 import joblib
 from sklearn.model_selection import GridSearchCV
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.pipeline import Pipeline
@@ -280,3 +281,95 @@ print(model_comparision)
 print("\n===Final model selection=====")
 print("selected model:Logistic Regression")
 print("Reason: Logistic Regression achieved best overall performace across accuracy , f1 score, roc-auc")
+
+
+print("\n====KNearest Neighbors=====")
+knn_model=Pipeline(steps=[("preprocessor",preprocesssor),("classifier",KNeighborsClassifier(n_neighbors=5))])
+'''knn_model.fit(X_train,y_train)
+knn_pred=knn_model.predict(X_test)
+knn_proba=knn_model.predict_proba(X_test)
+knn_classes=knn_model.named_steps["classifier"].classes_
+knn_y_index=list(knn_classes).index("Y")
+knn_prob_y=knn_proba[:,knn_y_index]
+knn_accuracy=accuracy_score(y_test,knn_pred)
+knn_precision=precision_score(y_test,knn_pred,pos_label="Y")
+knn_recall=recall_score(y_test,knn_pred,pos_label="Y")
+knn_f1=f1_score(y_test,knn_pred,pos_label="Y")
+knn_roc_auc=roc_auc_score(y_test_binary,knn_prob_y)
+knn_confusion_matrix=confusion_matrix(y_test,knn_pred)
+print("Accuracy:",knn_accuracy)
+print("Precision:",knn_precision)
+print("recall:",knn_recall)
+print("F1 Score:", knn_f1)
+print("ROC-AUC:", knn_roc_auc)
+print("confusion matrix:",knn_confusion_matrix)
+print("\n classification report:")
+print(classification_report(y_test,knn_pred))'''
+knn_param_grid={"classifier__n_neighbors":[3,5,7,9,11]}
+knn_grid_search=GridSearchCV(estimator=knn_model,param_grid=knn_param_grid,cv=5,scoring="roc_auc")
+knn_grid_search.fit(X_train,y_train)
+print("Best parameters:",knn_grid_search.best_params_)
+print("Best CV ROC-AUC:",knn_grid_search.best_score_)
+best_knn_model=knn_grid_search.best_estimator_
+knn_pred=best_knn_model.predict(X_test)
+knn_proba=best_knn_model.predict_proba(X_test)
+knn_classes=best_knn_model.named_steps["classifier"].classes_
+knn_y_index=list(knn_classes).index("Y")
+knn_prob_y=knn_proba[:,knn_y_index]
+knn_accuracy = accuracy_score(
+    y_test,
+    knn_pred
+)
+
+knn_precision = precision_score(
+    y_test,
+    knn_pred,
+    pos_label="Y"
+)
+
+knn_recall = recall_score(
+    y_test,
+    knn_pred,
+    pos_label="Y"
+)
+
+knn_f1 = f1_score(
+    y_test,
+    knn_pred,
+    pos_label="Y"
+)
+
+knn_roc_auc=roc_auc_score(y_test_binary,knn_prob_y)
+knn_confusion_matrix = confusion_matrix(
+    y_test,
+    knn_pred
+)
+
+# 11. Print evaluation
+print("\nKNN Test Results")
+
+print("Accuracy:", knn_accuracy)
+print("Precision:", knn_precision)
+print("Recall:", knn_recall)
+print("F1 Score:", knn_f1)
+print("ROC-AUC:", knn_roc_auc)
+
+print("\nConfusion Matrix:")
+print(knn_confusion_matrix)
+print("\nClassification Report:")
+print(classification_report(y_test,knn_pred))
+model_comparision=pd.DataFrame({"Model":["Logistic Regression","Decision Tree","Random Forest","Tuned KNN"],
+                                "Accuracy":[accuracy,best_tree_accuracy,random_forest_accuracy,knn_accuracy],
+                                "Precision":[precision,best_tree_precision,random_forest_precision,knn_precision],
+                                "Recall":[recall,best_tree_recall,random_forest_recall,knn_recall],
+                                "f1score":[f1score,best_tree_f1,random_forest_f1,knn_f1],
+                                "ROC-AUC":[roc_auc,best_tree_roc_auc,random_forest_roc_auc,knn_roc_auc]})
+print(model_comparision.round(4))
+comparision_display=model_comparision.copy()
+metric_columns=["Accuracy","Precision","Recall","f1score","ROC-AUC"]
+comparision_display[metric_columns]=(comparision_display[metric_columns]*100).round(2)
+print(comparision_display)
+comparision_display=comparision_display.rename(columns={column:f"{column} (%)" for column in metric_columns})
+print(comparision_display)
+print("\n Model comparision")
+print(comparision_display.to_string(index=False))
