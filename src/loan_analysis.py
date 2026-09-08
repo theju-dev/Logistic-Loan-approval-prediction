@@ -7,6 +7,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import OneHotEncoder,StandardScaler
 from sklearn.compose import ColumnTransformer
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score,confusion_matrix,roc_auc_score,classification_report,precision_score,recall_score,f1_score
 df=pd.read_csv("data/Loan_Data.csv")
@@ -216,3 +217,66 @@ print("\nConfusion Matrix:")
 print(best_tree_confusion_matrix)
 print("\n classification report")
 print(classification_report(y_test,best_tree_pred))
+print("\n Random Forest")
+random_forest_model=Pipeline(steps=[("preprocessor",tree_preprocessor),("classifier",RandomForestClassifier(n_estimators=100,random_state=42))])
+random_forest_model.fit(X_train,y_train)
+rf_classifier=random_forest_model.named_steps["classifier"]
+print("Number of trees:")
+print(len(rf_classifier.estimators_))
+random_forest_pred=random_forest_model.predict(X_test)
+random_forest_proba=random_forest_model.predict_proba(X_test)
+random_forest_classes=random_forest_model.named_steps["classifier"].classes_
+random_forest_y_index=list(random_forest_classes).index("Y")
+random_forest_y_proba=random_forest_proba[:,random_forest_y_index]
+'''print("\nRandom Forest classes:")
+print(random_forest_classes)
+
+print("\nFirst 5 predictions:")
+print(random_forest_pred[:5])
+
+print("\nFirst 5 probabilities:")
+print(random_forest_proba[:5])'''
+random_forest_accuracy=accuracy_score(y_test,random_forest_pred)
+random_forest_precision=precision_score(y_test,random_forest_pred,pos_label="Y")
+random_forest_recall=recall_score(y_test,random_forest_pred,pos_label="Y")
+random_forest_f1=f1_score(y_test,random_forest_pred,pos_label="Y")
+random_forest_roc_auc=roc_auc_score(y_test_binary,random_forest_y_proba)
+random_forest_confusion_matrix=confusion_matrix(y_test,random_forest_pred)
+print("\n===== RANDOM FOREST RESULTS =====")
+
+print("Accuracy:", random_forest_accuracy)
+print("Precision:", random_forest_precision)
+print("Recall:", random_forest_recall)
+print("F1 Score:", random_forest_f1)
+print("ROC-AUC:", random_forest_roc_auc)
+print("\nConfusion Matrix:")
+print(random_forest_confusion_matrix)
+print("\nclassification report")
+print(classification_report(y_test,random_forest_pred))
+X_train_transformed=random_forest_model.named_steps["preprocessor"].transform(X_train)
+print("\n===Random forest internal check=====")
+print("Number of trees")
+print(random_forest_model.named_steps["classifier"].estimators_)
+print(len(random_forest_model.named_steps["classifier"].estimators_))
+print("Bootstrap enabled")
+print(random_forest_model.named_steps["classifier"].bootstrap)
+print("\n original training shape")
+print(X_train.shape)
+print("Transformed training shape")
+print(X_train_transformed.shape)
+print("\n Max features setting")
+print(random_forest_model.named_steps["classifier"].max_features)
+first_tree=random_forest_model.named_steps["classifier"].estimators_[0]
+print("Number of features considered at each split")
+print(first_tree.max_features_)
+model_comparision=pd.DataFrame({"Model":["Logistic Regression","Decision Tree","Random Forest"],
+                                "Accuracy":[accuracy,best_tree_accuracy,random_forest_accuracy],
+                                "Precision":[precision,best_tree_precision,random_forest_precision],
+                                "Recall":[recall,best_tree_recall,random_forest_recall],
+                                "f1score":[f1score,best_tree_f1,random_forest_f1],
+                                "ROC-AUC":[roc_auc,best_tree_roc_auc,random_forest_roc_auc]})
+print("\n===model comparision=====")
+print(model_comparision)
+print("\n===Final model selection=====")
+print("selected model:Logistic Regression")
+print("Reason: Logistic Regression achieved best overall performace across accuracy , f1 score, roc-auc")
