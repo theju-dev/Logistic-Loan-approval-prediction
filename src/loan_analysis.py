@@ -3,8 +3,10 @@ import joblib
 from sklearn.model_selection import GridSearchCV
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import train_test_split
+from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.pipeline import Pipeline
+from sklearn.svm import SVC
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import OneHotEncoder,StandardScaler
 from sklearn.compose import ColumnTransformer
@@ -270,7 +272,7 @@ print(random_forest_model.named_steps["classifier"].max_features)
 first_tree=random_forest_model.named_steps["classifier"].estimators_[0]
 print("Number of features considered at each split")
 print(first_tree.max_features_)
-model_comparision=pd.DataFrame({"Model":["Logistic Regression","Decision Tree","Random Forest"],
+'''model_comparision=pd.DataFrame({"Model":["Logistic Regression","Decision Tree","Random Forest"],
                                 "Accuracy":[accuracy,best_tree_accuracy,random_forest_accuracy],
                                 "Precision":[precision,best_tree_precision,random_forest_precision],
                                 "Recall":[recall,best_tree_recall,random_forest_recall],
@@ -281,7 +283,7 @@ print(model_comparision)
 print("\n===Final model selection=====")
 print("selected model:Logistic Regression")
 print("Reason: Logistic Regression achieved best overall performace across accuracy , f1 score, roc-auc")
-
+'''
 
 print("\n====KNearest Neighbors=====")
 knn_model=Pipeline(steps=[("preprocessor",preprocesssor),("classifier",KNeighborsClassifier(n_neighbors=5))])
@@ -358,7 +360,7 @@ print("\nConfusion Matrix:")
 print(knn_confusion_matrix)
 print("\nClassification Report:")
 print(classification_report(y_test,knn_pred))
-model_comparision=pd.DataFrame({"Model":["Logistic Regression","Decision Tree","Random Forest","Tuned KNN"],
+'''/*model_comparision=pd.DataFrame({"Model":["Logistic Regression","Decision Tree","Random Forest","Tuned KNN"],
                                 "Accuracy":[accuracy,best_tree_accuracy,random_forest_accuracy,knn_accuracy],
                                 "Precision":[precision,best_tree_precision,random_forest_precision,knn_precision],
                                 "Recall":[recall,best_tree_recall,random_forest_recall,knn_recall],
@@ -372,4 +374,57 @@ print(comparision_display)
 comparision_display=comparision_display.rename(columns={column:f"{column} (%)" for column in metric_columns})
 print(comparision_display)
 print("\n Model comparision")
+print(comparision_display.to_string(index=False))'''
+svm_model=Pipeline(steps=[("preprocessor",preprocesssor),("classifier",SVC())])
+svm_param_grid=[{"classifier__kernel":["linear"],
+                 "classifier__C":[0.1,1,10]},
+                 {"classifier__kernel":["rbf"],
+                  "classifier__C":[0.1,1,10],
+                  "classifier__gamma":["scale",0.01,0.1,1]}]
+svm_grid_search=GridSearchCV(estimator=svm_model,param_grid=svm_param_grid,cv=5,scoring="roc_auc",n_jobs=-1)
+svm_grid_search.fit(X_train,y_train)
+print("\n Best SVM parameters")
+print(svm_grid_search.best_params_)
+print("\n Best SVM CV ROC-AUC")
+print(svm_grid_search.best_score_)
+print("\n Best svm ESTIMATOR")
+best_svm_model=svm_grid_search.best_estimator_
+svm_predictions=best_svm_model.predict(X_test)
+svm_decision_scores=best_svm_model.decision_function(X_test)
+svm_classes=best_svm_model.named_steps["classifier"].classes_
+'''print("\n SVM classes")
+print(svm_classes)'''
+if svm_classes[1]=="Y":
+    svm_positive_scores=svm_decision_scores
+elif svm_classes[0]=="Y":
+    svm_positive_scores=-svm_decision_scores
+else:
+    raise ValueError("Positive Y class was not found in SVM classes")
+svm_accuracy=accuracy_score(y_test,svm_predictions)
+svm_precision=precision_score(y_test,svm_predictions,pos_label="Y")
+svm_recall=recall_score(y_test,svm_predictions,pos_label="Y")
+svm_f1=f1_score(y_test,svm_predictions,pos_label="Y")
+svm_roc_auc=roc_auc_score(y_test_binary,svm_positive_scores)
+print("\n SVM Test Metrics")
+print(f"Accuracy:{svm_accuracy*100:.2f}")
+print(f"Precision:{svm_precision*100:.2f}")
+print(f"Recall:{svm_recall*100:.2f}")
+print(f"F1 score:{svm_f1*100:.2f}")
+print(f"ROC-AUC:{svm_roc_auc*100:.2f}")
+svm_confusion_matrix=confusion_matrix(y_test,svm_predictions,labels=["N","Y"])
+print(svm_confusion_matrix)
+print("\n SVM Classification report")
+print(classification_report(y_test,svm_predictions,labels=["N","Y"],zero_division=0))
+model_comparision=pd.DataFrame({"Model":["Logistic Regression","Decision Tree","Random Forest","Tuned KNN","Tuned SVM"],
+                                "Accuracy":[accuracy,best_tree_accuracy,random_forest_accuracy,knn_accuracy,svm_accuracy],
+                                "Precision":[precision,best_tree_precision,random_forest_precision,knn_precision,svm_precision],
+                                "Recall":[recall,best_tree_recall,random_forest_recall,knn_recall,svm_recall],
+                                "f1score":[f1score,best_tree_f1,random_forest_f1,knn_f1,svm_f1],
+                                "ROC-AUC":[roc_auc,best_tree_roc_auc,random_forest_roc_auc,knn_roc_auc,svm_roc_auc]})
+
+comparision_display=model_comparision.copy()
+metric_columns=["Accuracy","Precision","Recall","f1score","ROC-AUC"]
+comparision_display[metric_columns]=(comparision_display[metric_columns]*100).round(2)
+comparision_display=comparision_display.rename(columns={column:f"{column} (%)" for column in metric_columns})
+print("\n Final model comparision")
 print(comparision_display.to_string(index=False))
