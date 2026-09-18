@@ -12,6 +12,7 @@ from sklearn.preprocessing import OneHotEncoder,StandardScaler
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
+from sklearn.naive_bayes import GaussianNB
 from sklearn.metrics import accuracy_score,confusion_matrix,roc_auc_score,classification_report,precision_score,recall_score,f1_score
 df=pd.read_csv("data/Loan_Data.csv")
 print(df.head())
@@ -415,13 +416,53 @@ svm_confusion_matrix=confusion_matrix(y_test,svm_predictions,labels=["N","Y"])
 print(svm_confusion_matrix)
 print("\n SVM Classification report")
 print(classification_report(y_test,svm_predictions,labels=["N","Y"],zero_division=0))
-model_comparision=pd.DataFrame({"Model":["Logistic Regression","Decision Tree","Random Forest","Tuned KNN","Tuned SVM"],
+naive_bayes_categorical_transformer=Pipeline(steps=[("imputer",SimpleImputer(strategy="most_frequent")),
+                                                    ("encoder",OneHotEncoder(handle_unknown="ignore",sparse_output=False))])
+naive_bayes_preprocessor=ColumnTransformer(transformers=[("num",numeric_transformer,numeric_features),
+                                                         ("binary",binary_transformer,binary_features),
+                                                         ("cat",naive_bayes_categorical_transformer,categorical_features)])
+naive_bayes_model=Pipeline(steps=[("preprocessor",naive_bayes_preprocessor),("classifier",GaussianNB())])
+
+'''model_comparision=pd.DataFrame({"Model":["Logistic Regression","Decision Tree","Random Forest","Tuned KNN","Tuned SVM"],
                                 "Accuracy":[accuracy,best_tree_accuracy,random_forest_accuracy,knn_accuracy,svm_accuracy],
                                 "Precision":[precision,best_tree_precision,random_forest_precision,knn_precision,svm_precision],
                                 "Recall":[recall,best_tree_recall,random_forest_recall,knn_recall,svm_recall],
                                 "f1score":[f1score,best_tree_f1,random_forest_f1,knn_f1,svm_f1],
                                 "ROC-AUC":[roc_auc,best_tree_roc_auc,random_forest_roc_auc,knn_roc_auc,svm_roc_auc]})
 
+comparision_display=model_comparision.copy()
+metric_columns=["Accuracy","Precision","Recall","f1score","ROC-AUC"]
+comparision_display[metric_columns]=(comparision_display[metric_columns]*100).round(2)
+comparision_display=comparision_display.rename(columns={column:f"{column} (%)" for column in metric_columns})
+print("\n Final model comparision")
+print(comparision_display.to_string(index=False))'''
+naive_bayes_model.fit(X_train,y_train)
+naive_bayes_predictions=naive_bayes_model.predict(X_test)
+naive_bayes_probabilities=naive_bayes_model.predict_proba(X_test)
+naive_bayes_classes=naive_bayes_model.named_steps["classifier"].classes_
+naive_bayes_positive_class_index=list(naive_bayes_classes).index("Y")
+naive_bayes_positive_probabilties=naive_bayes_probabilities[:,naive_bayes_positive_class_index]
+naive_bayes_accuracy=accuracy_score(y_test,naive_bayes_predictions)
+naive_bayes_precision=precision_score(y_test,naive_bayes_predictions,pos_label="Y",zero_division=0)
+naive_bayes_recall=recall_score(y_test,naive_bayes_predictions,pos_label="Y",zero_division=0)
+naive_bayes_f1=f1_score(y_test,naive_bayes_predictions,pos_label="Y",zero_division=0)
+naive_bayes_roc_auc=roc_auc_score(y_test_binary,naive_bayes_positive_probabilties)
+print("\nGaussian Naive Bayes Evalauation")
+print(f"Accuracy:{naive_bayes_accuracy:.4f}")
+print(f"Recall:{naive_bayes_recall:.4f}")
+print(f"Precision:{naive_bayes_precision:.4f}")
+print(f"F1 Score:{naive_bayes_f1:.4f}")
+print(f"ROC-AUC:{naive_bayes_roc_auc:.4f}")
+naive_bayes_confusion_matrix=confusion_matrix(y_test,naive_bayes_predictions,labels=["N","Y"])
+print(f"Confusion matrix:{naive_bayes_confusion_matrix}")
+print("\ngaussian naive bayes classification report")
+print(classification_report(y_test,naive_bayes_predictions,labels=["N","Y"],zero_division=0))
+model_comparision=pd.DataFrame({"Model":["Logistic Regression","Decision Tree","Random Forest","Tuned KNN","Tuned SVM","Gaussian Naive Bayes"],
+                                "Accuracy":[accuracy,best_tree_accuracy,random_forest_accuracy,knn_accuracy,svm_accuracy,naive_bayes_accuracy],
+                                "Precision":[precision,best_tree_precision,random_forest_precision,knn_precision,svm_precision,naive_bayes_precision],
+                                "Recall":[recall,best_tree_recall,random_forest_recall,knn_recall,svm_recall,naive_bayes_recall],
+                                "f1score":[f1score,best_tree_f1,random_forest_f1,knn_f1,svm_f1,naive_bayes_f1],
+                                "ROC-AUC":[roc_auc,best_tree_roc_auc,random_forest_roc_auc,knn_roc_auc,svm_roc_auc,naive_bayes_roc_auc]})
 comparision_display=model_comparision.copy()
 metric_columns=["Accuracy","Precision","Recall","f1score","ROC-AUC"]
 comparision_display[metric_columns]=(comparision_display[metric_columns]*100).round(2)
