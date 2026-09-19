@@ -49,6 +49,10 @@ numeric_features=["ApplicantIncome","CoapplicantIncome","LoanAmount","Loan_Amoun
 binary_features=["Credit_History"]
 categorical_features=["Gender","Married","Dependents","Education","Self_Employed","Property_Area"]
 X_train,X_test,y_train,y_test=train_test_split(X,y,test_size=0.2,random_state=42,stratify=y)
+print("\n Training target distribution")
+print(y_train.value_counts())
+print("\n Training target percentage")
+print((y_train.value_counts(normalize=True)*100).round(2))
 print("\nTrain shape:")
 print(X_train.shape)
 print("\nTest shape:")
@@ -61,7 +65,34 @@ numeric_transformer=Pipeline(steps=[("imputer",SimpleImputer(strategy="median"))
 binary_transformer=Pipeline(steps=[("imputer",SimpleImputer(strategy="most_frequent"))])
 categorical_transformer=Pipeline(steps=[("imputer",SimpleImputer(strategy="most_frequent")),("encoder",OneHotEncoder(handle_unknown="ignore"))])
 preprocesssor=ColumnTransformer(transformers=[("num",numeric_transformer,numeric_features),("binary",binary_transformer,binary_features),("cat",categorical_transformer,categorical_features)])
-model=Pipeline(steps=[("preprocessor",preprocesssor),("classifier",LogisticRegression(max_iter=100))])
+model=Pipeline(steps=[("preprocessor",preprocesssor),("classifier",LogisticRegression(max_iter=100,random_state=42))])
+balanced_logistic_model=Pipeline(steps=[("preprocessor",preprocesssor),("classifier",LogisticRegression(max_iter=1000,random_state=42,class_weight="balanced"))])
+balanced_logistic_model.fit(X_train,y_train)
+balanced_logistic_predictions=balanced_logistic_model.predict(X_test)
+balanced_logistic_probabilties=balanced_logistic_model.predict_proba(X_test)
+balanced_logistic_classes=balanced_logistic_model.named_steps["classifier"].classes_
+balanced_logistic_positive_class_index=list(balanced_logistic_classes).index("Y")
+balanced_logistic_positive_probabilties=balanced_logistic_probabilties[:,balanced_logistic_positive_class_index]
+balanced_logistic_accuracy=accuracy_score(y_test,balanced_logistic_predictions)
+balanced_logistic_precision=precision_score(y_test,balanced_logistic_predictions,pos_label="Y")
+balanced_logistic_recall=recall_score(y_test,balanced_logistic_predictions,pos_label="Y")
+balanced_logistic_f1=f1_score(y_test,balanced_logistic_predictions,pos_label="Y")
+y_test_binary=(y_test=="Y").astype(int)
+balanced_logistic_roc_auc=roc_auc_score(y_test_binary,balanced_logistic_positive_probabilties)
+balanced_logistic_confusion_matrix=confusion_matrix(y_test,balanced_logistic_predictions,labels=["N","Y"])
+print("\nBalanced Logistic Regression Evalaution")
+print(f"Accuracy:{balanced_logistic_accuracy*100:.2f}%")
+print(f"Precision:{balanced_logistic_precision*100:.2f}%")
+print(f"Recall:{balanced_logistic_recall*100:.2f}%")
+print(
+    f"F1 Score: {balanced_logistic_f1 * 100:.2f}%"
+)
+print(
+    f"ROC-AUC: {balanced_logistic_roc_auc * 100:.2f}%"
+)
+
+print("\nBalanced Logistic Regression Confusion Matrix")
+print(balanced_logistic_confusion_matrix)
 print("\n train columns:")
 print(X_train.columns.tolist())
 print("\n numeric features:")
@@ -457,12 +488,12 @@ naive_bayes_confusion_matrix=confusion_matrix(y_test,naive_bayes_predictions,lab
 print(f"Confusion matrix:{naive_bayes_confusion_matrix}")
 print("\ngaussian naive bayes classification report")
 print(classification_report(y_test,naive_bayes_predictions,labels=["N","Y"],zero_division=0))
-model_comparision=pd.DataFrame({"Model":["Logistic Regression","Decision Tree","Random Forest","Tuned KNN","Tuned SVM","Gaussian Naive Bayes"],
-                                "Accuracy":[accuracy,best_tree_accuracy,random_forest_accuracy,knn_accuracy,svm_accuracy,naive_bayes_accuracy],
-                                "Precision":[precision,best_tree_precision,random_forest_precision,knn_precision,svm_precision,naive_bayes_precision],
-                                "Recall":[recall,best_tree_recall,random_forest_recall,knn_recall,svm_recall,naive_bayes_recall],
-                                "f1score":[f1score,best_tree_f1,random_forest_f1,knn_f1,svm_f1,naive_bayes_f1],
-                                "ROC-AUC":[roc_auc,best_tree_roc_auc,random_forest_roc_auc,knn_roc_auc,svm_roc_auc,naive_bayes_roc_auc]})
+model_comparision=pd.DataFrame({"Model":["Logistic Regression","Balanced Logistic Regression","Decision Tree","Random Forest","Tuned KNN","Tuned SVM","Gaussian Naive Bayes"],
+                                "Accuracy":[accuracy,balanced_logistic_accuracy,best_tree_accuracy,random_forest_accuracy,knn_accuracy,svm_accuracy,naive_bayes_accuracy],
+                                "Precision":[precision,balanced_logistic_precision,best_tree_precision,random_forest_precision,knn_precision,svm_precision,naive_bayes_precision],
+                                "Recall":[recall,balanced_logistic_recall,best_tree_recall,random_forest_recall,knn_recall,svm_recall,naive_bayes_recall],
+                                "f1score":[f1score,balanced_logistic_f1,best_tree_f1,random_forest_f1,knn_f1,svm_f1,naive_bayes_f1],
+                                "ROC-AUC":[roc_auc,balanced_logistic_roc_auc,best_tree_roc_auc,random_forest_roc_auc,knn_roc_auc,svm_roc_auc,naive_bayes_roc_auc]})
 comparision_display=model_comparision.copy()
 metric_columns=["Accuracy","Precision","Recall","f1score","ROC-AUC"]
 comparision_display[metric_columns]=(comparision_display[metric_columns]*100).round(2)
